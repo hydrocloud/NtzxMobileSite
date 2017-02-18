@@ -1,0 +1,30 @@
+{
+  "name": "ntzx-mobile-site",
+  "version": "0.0.1",
+  "description": "Mobile site for Nantong High School",
+  "main": "backend/main.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/losfair/ntzx-mobile-site.git"
+  },
+  "author": "Heyang Zhou",
+  "license": "LGPL-3.0",
+  "bugs": {
+    "url": "https://github.com/losfair/ntzx-mobile-site/issues"
+  },
+  "homepage": "https://github.com/losfair/ntzx-mobile-site#readme",
+  "dependencies": {
+    "body-parser": "^1.16.0",
+    "express": "^4.14.1",
+    "html-to-text": "^3.1.0",
+    "mongodb": "^2.2.22",
+    "request": "^2.79.0",
+    "request-promise": "^4.1.1"
+  },
+  "devDependencies": {
+    "prettyjson": "^1.2.1"
+  }
+}
