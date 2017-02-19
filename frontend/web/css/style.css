@@ -7,10 +7,22 @@ body {
     margin-top: 75px;
 }
 
-.copyright {
+.footer {
     color: #7F7F7F;
     text-align: center;
     margin: 30px 0px;
+    font-size: 14px;
+    line-height: 28px;
+}
+
+.footer > a {
+    color: #7F7F7F;
+    text-decoration: underline;
+}
+
+.footer > a:hover {
+    color: #7F7F7F;
+    text-decoration: none;
 }
 
 .article-date {

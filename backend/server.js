@@ -5,6 +5,14 @@ const express = require("express");
 const assert = require("assert");
 const fs = require("fs");
 const path = require("path");
+const ffi = require("ffi");
+const ref = require("ref");
+const ArrayType = require("ref-array");
+
+let CharArray = ArrayType(ref.types.char);
+let lib = ffi.Library("../backend_helper/libmain.so", {
+    "replace_resource_urls": ["int", ["string", CharArray, "long long"]]
+});
 
 const WEB_DIR = "../frontend/web/";
 const IMG_PREFIX = "http://www.ntzx.cn";
@@ -44,58 +52,29 @@ async function getArticleById(id) {
     return article;
 }
 
-function replaceResourceUrls(content) {
-    let ret = "";
-    let buf = "";
-    let state = 0;
+function replaceResourceUrls(input) {
+    return new Promise((cb, reject) => {
+        assert(typeof(input) == "string");
 
-    const imgSuffixes = [
-        ".jpg",
-        ".png",
-        ".jpeg",
-        ".gif",
-        ".JPG",
-        ".PNG",
-        ".JPEG",
-        ".GIF"
-    ];
+        let retBuf = new CharArray(input.length * 16);
 
-    for(let i = 0; i < content.length; i++) {
-        switch(state) {
-            case 0:
-                if(content[i] == '[') {
-                    state = 1;
-                    buf = "";
-                }
-                else ret += content[i];
-                break;
+        lib.replace_resource_urls.async(input, retBuf, retBuf.length, (err, len) => {
+            if(err) {
+                return reject(err);
+            }
 
-            case 1:
-                if(content[i] == ']') {
-                    let isImage = false;
-                    for(let j = 0; j < imgSuffixes.length; j++) {
-                        if(buf.endsWith(imgSuffixes[j])) {
-                            isImage = true;
-                            break;
-                        }
-                    }
-                    if(isImage) {
-                        ret += `<img class="article-image" src="${IMG_PREFIX + buf}" />`;
-                    } else {
-                        ret += "[" + buf + "]";
-                    }
-                    buf = "";
-                    state = 0;
-                } else {
-                    buf += content[i];
-                }
-                break;
-            default: // this shouldn't happen
-                break
-        }
-    }
+            let newBuf;
 
-    return ret;
+            try {
+                newBuf = new Buffer(len);
+                retBuf.buffer.copy(newBuf, 0, 0, len);
+            } catch(e) {
+                return reject(e);
+            }
+
+            cb(newBuf.toString("utf-8"));
+        });
+    });
 }
 
 app.use("/web/", express.static(path.join(__dirname, WEB_DIR)));
@@ -131,7 +110,7 @@ app.get("/article/list", wrap(async function (req, resp) {
             </tbody>
         </table>
     `;
-    resp.send(templates["main"].replace("{{PAGE_CONTENT}}", content));
+    resp.send(templates["main"].replace("{{PAGE_CONTENT}}", content).replace("{{PAGE_TITLE}}", "文章列表"));
 }));
 
 app.get("/article/by_id/:id", wrap(async function (req, resp) {
@@ -140,7 +119,7 @@ app.get("/article/by_id/:id", wrap(async function (req, resp) {
     let target = await getArticleById(req.params.id);
 
     let content = target.content.split("\n").join("<br />");
-    content = replaceResourceUrls(content);
+    content = await replaceResourceUrls(content);
 
     let ret = `
         <h3>${target.title}</h3>
@@ -148,7 +127,7 @@ app.get("/article/by_id/:id", wrap(async function (req, resp) {
         <hr />
         <p class="article-content">${content}</p>
     `;
-    resp.send(templates["main"].replace("{{PAGE_CONTENT}}", ret));
+    resp.send(templates["main"].replace("{{PAGE_CONTENT}}", ret).replace("{{PAGE_TITLE}}", target.title));
 }));
 
 async function run() {
