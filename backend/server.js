@@ -5,6 +5,7 @@ const express = require("express");
 const assert = require("assert");
 const fs = require("fs");
 const path = require("path");
+const servicehub = require("servicehub-sdk");
 const ffi = require("ffi");
 const ref = require("ref");
 const ArrayType = require("ref-array");
@@ -13,6 +14,7 @@ let CharArray = ArrayType(ref.types.char);
 let lib = ffi.Library("../backend_helper/libmain.so", {
     "replace_resource_urls": ["int", ["string", CharArray, "long long"]]
 });
+let servicehubContext = new servicehub.ServiceHubContext("172.16.8.1:6619");
 
 const WEB_DIR = "../frontend/web/";
 const IMG_PREFIX = "http://www.ntzx.cn";
@@ -23,6 +25,7 @@ let templates = {};
 function wrap(f) {
     return async function (req, resp) {
         try {
+            req.startTime = Date.now();
             await f(req, resp);
         } catch (e) {
             resp.json({
@@ -110,7 +113,11 @@ app.get("/article/list", wrap(async function (req, resp) {
             </tbody>
         </table>
     `;
-    resp.send(templates["main"].replace("{{PAGE_CONTENT}}", content).replace("{{PAGE_TITLE}}", "文章列表"));
+    resp.send(templates["main"]
+        .replace("{{PAGE_CONTENT}}", content)
+        .replace("{{PAGE_TITLE}}", "文章列表")
+        .replace("{{RENDER_TIME}}", ((Date.now() - req.startTime) / 1000).toString())
+    );
 }));
 
 app.get("/article/by_id/:id", wrap(async function (req, resp) {
@@ -127,12 +134,24 @@ app.get("/article/by_id/:id", wrap(async function (req, resp) {
         <hr />
         <p class="article-content">${content}</p>
     `;
-    resp.send(templates["main"].replace("{{PAGE_CONTENT}}", ret).replace("{{PAGE_TITLE}}", target.title));
+    resp.send(templates["main"]
+        .replace("{{PAGE_CONTENT}}", ret)
+        .replace("{{PAGE_TITLE}}", target.title)
+        .replace("{{RENDER_TIME}}", ((Date.now() - req.startTime) / 1000).toString())
+    );
 }));
 
 async function run() {
     db = await mongoClient.connect("mongodb://127.0.0.1:27017/NtzxMobileSite");
     templates["main"] = fs.readFileSync(path.join(__dirname, WEB_DIR, "index.html"), "utf-8");
+
+    console.log("Registering service...");
+    try {
+        await servicehubContext.register("NtzxMobileSite", "http://172.16.9.1:8195", true);
+        console.log("Done.");
+    } catch(e) {
+        console.log("Failed: " + e);
+    }
 
     app.listen(8195);
 }
