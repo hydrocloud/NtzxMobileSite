@@ -4,7 +4,7 @@ const html_to_text = require("html-to-text");
 async function getArticleData(url) {
     let rawData = await rp.get("http://www.ntzx.cn" + url);
 
-    let title = rawData.split(`<td class="title">`, 2)[1].split(`</td`, 2)[0];
+    let title = rawData.split(`<td class="title">`, 2)[1].split(`</td>`, 2)[0];
     let date = rawData.split("添加日期：", 2)[1].trim().split(" ", 2)[0].split("\n", 2)[0].trim()
     let content = html_to_text.fromString(rawData, {
         "wordwrap": false
