@@ -1,5 +1,11 @@
-RUSTC := rustc
-RUSTCFLAGS := --crate-type=dylib
+CARGO := cargo
 
-all:
-	$(RUSTC) $(RUSTCFLAGS) main.rs
+all: debug release
+
+debug:
+	$(CARGO) build
+
+release:
+	$(CARGO) build --release
+	cp ./target/release/*.so ./
+	strip ./*.so

@@ -2,10 +2,11 @@ const ffi = require("ffi");
 const ref = require("ref");
 const ArrayType = require("ref-array");
 const assert = require("assert");
+const path = require("path");
 
 let CharArray = ArrayType(ref.types.char);
 
-let lib = ffi.Library("./libmain.so", {
+let lib = ffi.Library(path.join(__dirname, "../libbackend_helper.so"), {
     "replace_resource_urls": ["int", ["string", CharArray, "long long"]]
 });
 

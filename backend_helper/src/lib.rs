@@ -51,7 +51,7 @@ pub fn replace_resource_urls(content: *const i8, ret_buf: *mut u8, ret_buf_size:
                     if is_image {
                         ret.push_str(format!("<img class=\"article-image\" src=\"{}{}\" />", img_prefix, buf).as_str());
                     } else {
-                        ret.push_str(format!("[{}]", buf).as_str());
+                        ret.push_str(format!("<a href=\"{}\">{}</a>", buf, buf).as_str());
                     }
                     buf.clear();
                     state = 0;

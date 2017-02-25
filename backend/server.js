@@ -3,6 +3,7 @@ const spider = require("./spider.js");
 const uuid = require("uuid");
 const express = require("express");
 const assert = require("assert");
+const rp = require("request-promise");
 const fs = require("fs");
 const path = require("path");
 const servicehub = require("servicehub-sdk");
@@ -11,7 +12,7 @@ const ref = require("ref");
 const ArrayType = require("ref-array");
 
 let CharArray = ArrayType(ref.types.char);
-let lib = ffi.Library("../backend_helper/libmain.so", {
+let lib = ffi.Library(path.join(__dirname, "../backend_helper/libbackend_helper.so"), {
     "replace_resource_urls": ["int", ["string", CharArray, "long long"]]
 });
 let servicehubContext = new servicehub.ServiceHubContext("172.16.8.1:6619");
@@ -28,6 +29,7 @@ function wrap(f) {
             req.startTime = Date.now();
             await f(req, resp);
         } catch (e) {
+            console.log(e);
             resp.json({
                 "err": 1,
                 "msg": e
@@ -55,6 +57,22 @@ async function getArticleById(id) {
     return article;
 }
 
+async function getArticleByOriginalUrl(url) {
+    assert(typeof(url) == "string");
+
+    let article = await db.collection("articles").find({
+        "url": url
+    }).limit(1).toArray();
+    article = article[0];
+
+    return article;
+}
+
+async function fetchOriginalArticleByUrl(url) {
+    assert(typeof(url) == "string" && url.startsWith("/"));
+    return spider.getArticleData(url);
+}
+
 function replaceResourceUrls(input) {
     return new Promise((cb, reject) => {
         assert(typeof(input) == "string");
@@ -78,6 +96,21 @@ function replaceResourceUrls(input) {
             cb(newBuf.toString("utf-8"));
         });
     });
+}
+
+async function renderArticle(target) {
+    let content = target.content.split("\n").join("<br />");
+    content = await replaceResourceUrls(content);
+
+    let ret = `
+        <h3>${target.title}</h3>
+        <p class="article-date">${target.date}</p>
+        <hr />
+        <p class="article-content">${content}</p>
+    `;
+    return templates["main"]
+        .replace("{{PAGE_CONTENT}}", ret)
+        .replace("{{PAGE_TITLE}}", target.title);
 }
 
 app.use("/web/", express.static(path.join(__dirname, WEB_DIR)));
@@ -125,21 +158,26 @@ app.get("/article/by_id/:id", wrap(async function (req, resp) {
 
     let target = await getArticleById(req.params.id);
 
-    let content = target.content.split("\n").join("<br />");
-    content = await replaceResourceUrls(content);
-
-    let ret = `
-        <h3>${target.title}</h3>
-        <p class="article-date">${target.date}</p>
-        <hr />
-        <p class="article-content">${content}</p>
-    `;
-    resp.send(templates["main"]
-        .replace("{{PAGE_CONTENT}}", ret)
-        .replace("{{PAGE_TITLE}}", target.title)
-        .replace("{{RENDER_TIME}}", ((Date.now() - req.startTime) / 1000).toString())
-    );
+    let r = await renderArticle(target);
+    resp.send(r.replace("{{RENDER_TIME}}", ((Date.now() - req.startTime) / 1000).toString()));
 }));
+
+app.get("/*", wrap(async function (req, resp) {
+    let target = await getArticleByOriginalUrl(req.url.split("?")[0].split("#")[0])
+    if(!target) {
+        try {
+            if(!req.url.endsWith(".html")) return resp.redirect("http://www.ntzx.cn" + req.url);
+            let d = await fetchOriginalArticleByUrl(req.url);
+            let r = await renderArticle(d)
+            return resp.send(r.replace("{{RENDER_TIME}}", ((Date.now() - req.startTime) / 1000).toString()));
+        } catch(e) {
+            resp.status(404);
+            return resp.send("Page not found");
+        }
+    }
+    let r = await renderArticle(target);
+    resp.send(r.replace("{{RENDER_TIME}}", ((Date.now() - req.startTime) / 1000).toString()));
+}))
 
 async function run() {
     db = await mongoClient.connect("mongodb://127.0.0.1:27017/NtzxMobileSite");

@@ -1,12 +1,20 @@
 const rp = require("request-promise");
 const html_to_text = require("html-to-text");
 
-async function getArticleContent(url) {
+async function getArticleData(url) {
     let rawData = await rp.get("http://www.ntzx.cn" + url);
 
-    return html_to_text.fromString(rawData, {
+    let title = rawData.split(`<td class="title">`, 2)[1].split(`</td`, 2)[0];
+    let date = rawData.split("添加日期：", 2)[1].trim().split(" ", 2)[0].split("\n", 2)[0].trim()
+    let content = html_to_text.fromString(rawData, {
         "wordwrap": false
     }).split("繁體中文", 2)[1].split("[打印 [javascript:window.print();]]", 2)[0].trim();
+
+    return {
+        "title": title,
+        "content": content,
+        "date": date
+    };
 }
 
 async function collectArticles() {
@@ -47,5 +55,5 @@ async function collectArticles() {
 
 module.exports = {
     collectArticles: collectArticles,
-    getArticleContent: getArticleContent
+    getArticleData: getArticleData
 };

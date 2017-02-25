@@ -10,7 +10,7 @@ ffi.cdef('''
     void free(char *mem);
 ''')
 
-lib = ffi.dlopen("./libmain.so")
+lib = ffi.dlopen("../libbackend_helper.so")
 
 content = '''
 我校召开新学期德育工作会议

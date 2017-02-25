@@ -12,8 +12,8 @@ async function run() {
 
         console.log(a.title);
 
-        let content = await spider.getArticleContent(a.url);
-        console.log(content);
+        let d = await spider.getArticleData(a.url);
+        console.log(d);
     }
 }
 

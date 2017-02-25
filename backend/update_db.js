@@ -19,11 +19,14 @@ async function run() {
             }).limit(1).toArray();
             if(current && current.length) return;
 
-            let content;
+            let content, title;
             try {
-                content = await spider.getArticleContent(a.url);
+                let d = await spider.getArticleData(a.url);
+                content = d.content;
+                title = d.title;
             } catch(e) {
                 content = "";
+                title = a.title;
             }
 
             let id = uuid.v4();
@@ -31,7 +34,7 @@ async function run() {
             await db.collection("articles").insertOne({
                 "id": id,
                 "url": a.url,
-                "title": a.title,
+                "title": title,
                 "date": a.date,
                 "content": content
             });
